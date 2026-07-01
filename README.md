@@ -1,0 +1,2 @@
+# AIRecruitmentPlatform
+project-intern
