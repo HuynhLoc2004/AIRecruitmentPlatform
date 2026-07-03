@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # 1. RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cv-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cv-platform-network
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # 2. Redis In-Memory Cache
+  redis:
+    image: redis:alpine
+    container_name: cv-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - cv-platform-network
+    volumes:
+      - redis_data:/data
+
+  # 3. Spring Boot Backend Ingestion Service
+  backend:
+    build: ./backend
+    container_name: cv-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/cv_screening}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD:-password}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - cv-platform-network
+
+  # 4. Vite React Frontend (Served via Nginx)
+  frontend:
+    build: ./frontend
+    container_name: cv-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - cv-platform-network
+
+  # 5. PostgreSQL Database with pgvector (Port 5433 to avoid conflicts on host)
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: cv-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: cv_screening
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cv-platform-network
+
+  # 6. Spring Boot CV Worker Service (RabbitMQ queue consumer)
+  worker:
+    build: ./cv-worker-service
+    container_name: cv-worker
+    environment:
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/cv_screening}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD:-password}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - cv-platform-network
+
+networks:
+  cv-platform-network:
+    name: cv-platform-network
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  redis_data:
+  pgdata:
+  uploads_data:

@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cv-ingestion-service
+
+  # PostgreSQL Datasource Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cv_screening}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA / Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2.0
+          max-interval: 10s
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # File Size Validation (Multipart limits)
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# Custom Ingestion Service Settings
+app:
+  upload:
+    dir: ${APP_UPLOAD_DIR:./uploads}
+  rabbitmq:
+    exchange: cv.ingestion.exchange
+    queue: cv.parsing.queue
+    routing-key: cv.upload.success
+    dlx: cv.ingestion.dlx
+    dlq: cv.dlq
+    prefetch: 2
+  openai:
+    api-key: ${GEMINI_API_KEY:your-api-key-here}
+    embedding-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent
+    embedding-model: gemini-embedding-2

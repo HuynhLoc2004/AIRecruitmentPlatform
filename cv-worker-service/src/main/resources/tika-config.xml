@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<properties>
+  <parsers>
+    <parser class="org.apache.tika.parser.DefaultParser">
+      <parser-exclude class="org.apache.tika.parser.ocr.TesseractOCRParser"/>
+    </parser>
+    <parser class="org.apache.tika.parser.ocr.TesseractOCRParser"/>
+    <parser class="org.apache.tika.parser.pdf.PDFParser">
+      <params>
+        <!-- For scanned PDFs: extract embedded images and run OCR on them -->
+        <param name="extractInlineImages" type="bool">true</param>
+        <param name="extractUniqueInlineImagesOnly" type="bool">false</param>
+        <param name="ocrStrategy" type="string">ocr_and_text_extraction</param>
+        <param name="ocrDPI" type="int">300</param>
+      </params>
+    </parser>
+  </parsers>
+
+  <detectors>
+    <detector class="org.apache.tika.detect.DefaultDetector"/>
+  </detectors>
+
+  <service-loader initializableProblemHandler="ignore"/>
+
+  <ocr>
+    <params>
+      <param name="language" type="string">eng+vie</param>
+      <param name="enableImagePreprocessing" type="bool">true</param>
+      <param name="applyRotation" type="bool">true</param>
+      <param name="pageSegMode" type="int">1</param>
+      <param name="minFileSizeToOcr" type="int">0</param>
+      <param name="maxFileSizeToOcr" type="int">314572800</param>
+      <param name="outputType" type="string">txt</param>
+      <param name="preserveInterwordSpacing" type="bool">true</param>
+      <param name="timeoutSeconds" type="int">30</param>
+    </params>
+  </ocr>
+</properties>

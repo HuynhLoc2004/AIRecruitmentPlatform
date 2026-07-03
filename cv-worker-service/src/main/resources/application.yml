@@ -1,0 +1,65 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: cv-worker-service
+
+  # PostgreSQL Datasource (connecting to pgvector enabled DB)
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cv_screening}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA / Hibernate settings
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    listener:
+      simple:
+        prefetch: 2  # Prefetch limit to manage backpressure
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2.0
+          max-interval: 10s
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# Worker-Specific Settings
+app:
+  rabbitmq:
+    exchange: cv.ingestion.exchange
+    queue: cv.parsing.queue
+    routing-key: cv.upload.success
+    dlx: cv.ingestion.dlx
+    dlq: cv.dlq
+
+  # OpenAI API Settings
+  openai:
+    api-key: ${GEMINI_API_KEY:your-api-key-here}
+    chat-url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+    chat-model: gemini-2.5-flash
+    embedding-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent
+    embedding-model: gemini-embedding-2
+
+  # OCR / Extraction Timeout
+  extraction:
+    timeout-ms: 30000 # 30 seconds OCR timeout limit

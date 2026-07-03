@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build directories and artifacts
+target/
+build/
+dist/
+out/
+*.jar
+*.war
+*.ear
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+tmp/
+uploads/
+uploads_data/
+
+# Dependencies
+node_modules/
+.mvn/
+wrapper/
+
+# Bmad output
+_bmad-output/
