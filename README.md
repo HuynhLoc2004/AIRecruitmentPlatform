@@ -1,132 +1,245 @@
-# AI-Powered CV Screening Platform
+# AI Recruitment Platform - CV Screening
 
-This repository contains the complete microservice and web application stack for an AI-Powered CV Ingestion and Semantic Search screening system. The platform is designed to efficiently process, analyze, and store candidate resumes (CVs) using modern microservices architecture, message queuing, and AI capabilities for text extraction, parsing, and embedding generation.
+AI-powered CV ingestion and candidate search platform built with Spring Boot, React, RabbitMQ, PostgreSQL/pgvector, Apache Tika, and Gemini.
 
-## ✨ Features
+The app lets recruiters upload PDF/DOCX resumes, process them asynchronously with an AI worker, store structured candidate profiles, and search candidates by natural language, skills, school, education, and related profile text.
 
-The platform provides the following key functionalities:
+## Current Features
 
-*   **Asynchronous CV Ingestion:**
-    *   REST endpoint for `multipart/form-data` uploads of PDF/DOCX CV files.
-    *   Files are stored securely in object storage (local filesystem mock for V1).
-    *   Processing jobs are registered in a PostgreSQL database with status tracking.
-    *   Asynchronous processing via RabbitMQ, ensuring high availability and resilience.
-*   **Job Status & Progress Tracking:**
-    *   REST endpoint to query the processing status of any uploaded CV using a `trackingId`.
-    *   Provides real-time updates on job status (QUEUED, EXTRACTING, PARSING, COMPLETED, FAILED).
-*   **Robust Error Handling & Resilience:**
-    *   Ingestion-time validation for file format, size, and content.
-    *   Processing-time failure mitigation with retries (e.g., for OCR timeouts, LLM API rate limits) and Dead-Letter Queue (DLQ) for unprocessable messages.
-    *   Consumer prefetch control for backpressure management.
-*   **AI-Powered Processing:**
-    *   Text extraction from PDF/DOCX using Apache Tika.
-    *   LLM-based parsing of raw resume text into structured fields (using Gemini 2.5 Flash via OpenAI-compatible API).
-    *   Candidate embedding generation for semantic search (using Gemini `text-embedding-004`).
-*   **Modern Tech Stack:**
-    *   Backend services built with Spring Boot (Java 17).
-    *   Frontend built with React, Vite, and Tailwind CSS.
-    *   Containerization with Docker and Docker Compose.
-    *   PostgreSQL with `pgvector` for efficient vector storage and search.
-    *   RabbitMQ for message brokering.
-    *   Redis for caching.
+- CV upload from the web UI or REST API.
+- Asynchronous resume processing through RabbitMQ.
+- PDF/DOCX text extraction with Apache Tika.
+- Gemini-powered resume parsing into candidate profile fields.
+- Gemini embedding generation with 768-dimensional vectors.
+- PostgreSQL/pgvector storage for candidate embeddings.
+- Hybrid candidate search:
+  - semantic vector search,
+  - exact matching on skills, education, name, and summary,
+  - PostgreSQL full-text ranking,
+  - query enrichment for short phrases such as `front end`.
+- Browser voice input for search queries using the Web Speech API.
+- Swagger/OpenAPI documentation for backend endpoints.
+- BMAD planning artifacts for PRD, brief, and implementation specs.
 
-## 🚀 Getting Started
+## Architecture
 
-The entire stack is containerized and configured for rapid local execution using Docker Compose.
+```text
+frontend React/Vite
+        |
+        v
+backend Spring Boot API
+        |
+        +--> PostgreSQL/pgvector: jobs, candidate profiles, embeddings
+        |
+        +--> RabbitMQ: CV parsing queue
+                  |
+                  v
+        cv-worker-service Spring Boot
+                  |
+                  +--> Apache Tika text extraction
+                  +--> Gemini resume parsing
+                  +--> Gemini embedding generation
+                  +--> PostgreSQL/pgvector persistence
+```
 
-### Prerequisites
+## Services
 
-*   [Docker & Docker Compose](https://docs.docker.com/get-docker/)
-*   [Java Development Kit (JDK) 17+](https://www.oracle.com/java/technologies/downloads/)
-*   [Apache Maven](https://maven.apache.org/download.cgi) (to build the backend and worker services locally before running)
-*   A `.env` file in the project root with your `GEMINI_API_KEY`.
+| Service | Container | Port | Purpose |
+| --- | --- | --- | --- |
+| Frontend | `cv-frontend` | `5173` | React UI served by Nginx |
+| Backend API | `cv-backend` | `8080` | Upload, status, and search APIs |
+| Worker | `cv-worker` | internal | Queue consumer for CV processing |
+| RabbitMQ | `cv-rabbitmq` | `5672`, `15672` | Message broker and management UI |
+| Redis | `cv-redis` | `6379` | Cache infrastructure |
+| Postgres/pgvector | `cv-postgres` | `5433` | Local pgvector database fallback |
 
-### Environment Variables
+## Tech Stack
 
-Create a `.env` file in the root directory of the project with the following variables:
+- Java 17
+- Spring Boot 3.3
+- Spring Data JPA
+- Spring AMQP
+- React 19
+- Vite
+- Tailwind CSS
+- PostgreSQL 16 with pgvector
+- RabbitMQ
+- Redis
+- Apache Tika
+- Gemini 2.5 Flash for parsing
+- Gemini Embedding API (`gemini-embedding-2`) for vector search
+- Docker Compose
+
+## Environment Setup
+
+Create a `.env` file in the project root. Do not commit real secrets.
 
 ```dotenv
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
-# Optional: Customize RabbitMQ, PostgreSQL, Redis credentials if needed
-RABBITMQ_USER=guest
-RABBITMQ_PASS=guest
+# Gemini
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Database
+# Local Docker database:
 SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/cv_screening
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=password
+
+# Or an external PostgreSQL/Neon database:
+# SPRING_DATASOURCE_URL=jdbc:postgresql://your-host/your-db?sslmode=require
+# SPRING_DATASOURCE_USERNAME=your_user
+# SPRING_DATASOURCE_PASSWORD=your_password
+
+# RabbitMQ
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+
+# Redis
 REDIS_HOST=redis
 REDIS_PORT=6379
 ```
 
-### Running the Stack
+A safe template is also provided in `.env.example`.
 
-To build the Java backend and worker binaries and spin up all containers (Frontend, Backend, Worker, RabbitMQ, Redis, PostgreSQL), run the build script in your terminal:
+## Run With Docker Compose
 
 ```bash
-sh build.sh
+docker compose up --build
 ```
 
-On Windows PowerShell, you can run:
+If your Docker Compose version still uses the old command:
 
-```powershell
-cd backend; mvn clean package -DskipTests; cd ..; cd cv-worker-service; mvn clean package -DskipTests; cd ..; docker-compose up --build
+```bash
+docker-compose up --build
 ```
 
-### Access Ports
+Open the app:
 
-Once the containers are running, you can access the various services at:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger-ui/index.html
+- RabbitMQ UI: http://localhost:15672
 
-*   **Frontend Web Dashboard:** [http://localhost:5173](http://localhost:5173) (Vite/Nginx)
-*   **Backend Spring Boot API:** [http://localhost:8080](http://localhost:8080)
-*   **OpenAPI Swagger Documentation:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
-*   **RabbitMQ Management Dashboard:** [http://localhost:15672](http://localhost:15672) (User/Pass: `guest` / `guest`)
-*   **Redis Instance:** `localhost:6379`
-*   **PostgreSQL Database:** `localhost:5433`
+Default RabbitMQ credentials are `guest` / `guest`.
 
-## 🏗️ Architecture
+## Common Development Commands
 
-The platform is composed of several microservices orchestrated by Docker Compose:
+Build backend only:
 
-*   **`backend` (Spring Boot):** The CV Ingestion Service. Exposes REST APIs for file uploads and job status queries. Interacts with the database, object storage, and publishes messages to RabbitMQ.
-*   **`worker` (Spring Boot):** The CV Worker Service. Consumes messages from RabbitMQ, performs text extraction (Apache Tika), LLM parsing (Gemini API), and generates embeddings. Updates job statuses and stores processed data in PostgreSQL.
-*   **`frontend` (React/Vite):** A web-based dashboard for recruiters to upload CVs and monitor their processing status.
-*   **`rabbitmq`:** Message broker for asynchronous communication between services.
-*   **`redis`:** In-memory data store used for caching.
-*   **`db` (PostgreSQL with `pgvector`):** The primary data store for job metadata, candidate profiles, and vector embeddings.
+```bash
+docker compose build backend
+```
 
-## 🛠️ Technologies Used
+Restart backend after code changes:
 
-### Backend & Worker Services (Java/Spring Boot)
+```bash
+docker compose up -d backend
+```
 
-*   **Spring Boot 3.3.0:** Framework for building robust microservices.
-*   **Spring Data JPA:** For database interaction with PostgreSQL.
-*   **Spring AMQP:** For RabbitMQ integration.
-*   **Spring Data Redis:** For Redis integration.
-*   **PostgreSQL:** Relational database.
-*   **pgvector:** PostgreSQL extension for vector similarity search.
-*   **Apache Tika:** For text extraction from various document formats (PDF, DOCX).
-*   **Lombok:** Boilerplate code reduction.
-*   **dotenv-java:** For loading environment variables from `.env` file.
-*   **Springdoc OpenAPI:** For generating Swagger UI documentation.
+Build frontend locally:
 
-### Frontend (React)
+```bash
+cd frontend
+npm install
+npm run build
+```
 
-*   **React 19:** JavaScript library for building user interfaces.
-*   **Vite:** Next-generation frontend tooling for fast development.
-*   **Tailwind CSS:** Utility-first CSS framework.
-*   **Axios:** Promise-based HTTP client.
-*   **Lucide React:** Icon library.
+Run backend Maven build locally:
 
-### Infrastructure
+```bash
+cd backend
+mvn clean package -DskipTests
+```
 
-*   **Docker & Docker Compose:** Containerization and orchestration.
-*   **RabbitMQ:** Message broker.
-*   **Redis:** In-memory data store.
-*   **PostgreSQL:** Relational database with vector capabilities.
+Run worker Maven build locally:
 
-## 📄 API Documentation
+```bash
+cd cv-worker-service
+mvn clean package -DskipTests
+```
 
-The Backend Spring Boot API provides interactive documentation via Swagger UI. Once the `backend` service is running, you can access it at:
+## API Overview
 
-[http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+### Upload CV
 
-This documentation details the available REST endpoints, request/response schemas, and allows for direct interaction with the API.
+```http
+POST /api/v1/cv/upload
+Content-Type: multipart/form-data
+```
+
+Form field:
+
+- `file`: PDF or DOCX resume.
+
+Response includes a `trackingId`.
+
+### Check Processing Status
+
+```http
+GET /api/v1/cv/status/{trackingId}
+```
+
+Typical statuses:
+
+- `QUEUED`
+- `EXTRACTING`
+- `PARSING`
+- `COMPLETED`
+- `FAILED`
+
+### Search Candidates
+
+```http
+POST /api/v1/search
+Content-Type: application/json
+```
+
+Example:
+
+```json
+{
+  "query": "front end intern React Tailwind IUH",
+  "limit": 10
+}
+```
+
+The search endpoint combines semantic vectors, exact text matches, and PostgreSQL full-text ranking.
+
+## Data Flow
+
+1. User uploads a CV from the frontend.
+2. Backend stores the uploaded file and creates a processing job.
+3. Backend publishes a queue message to RabbitMQ.
+4. Worker consumes the message.
+5. Worker extracts text with Apache Tika.
+6. Worker asks Gemini to parse the resume into structured fields.
+7. Worker generates an embedding for the candidate profile.
+8. Worker saves the candidate profile and vector to PostgreSQL.
+9. Search queries generate a query embedding and run hybrid ranking against stored profiles.
+
+## BMAD Artifacts
+
+This repo includes BMAD planning and implementation artifacts:
+
+- Product brief: `_bmad-output/planning-artifacts/briefs/...`
+- PRD: `_bmad-output/planning-artifacts/prds/...`
+- Implementation spec: `_bmad-output/implementation-artifacts/...`
+
+Keep these files committed so future AI/model sessions can understand the intended product direction and implementation history. Local `.memlog.md` files are ignored because they are transient working memory.
+
+## Notes For Contributors
+
+- Never commit `.env` or real API/database credentials.
+- Use `.env.example` for safe configuration examples.
+- Upload/debug resumes should not be committed.
+- Generated build outputs such as `target/`, `dist/`, and `node_modules/` are ignored.
+- If using an external PostgreSQL provider such as Neon, make sure the `vector` extension exists:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+## Known Limitations
+
+- Candidate skills and education are currently stored as text fields. For higher precision at scale, normalize them into dedicated tables or JSON columns.
+- Compatibility scores are hybrid search scores, not a formal HR assessment.
+- Browser voice input depends on Web Speech API support, best tested in Chrome or Edge.

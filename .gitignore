@@ -1,36 +1,50 @@
-# Environment variables
+# Environment and secrets
 .env
 .env.local
 .env.*.local
+!.env.example
 
-# Build directories and artifacts
+# Java / Maven
 target/
-build/
-dist/
-out/
 *.jar
 *.war
 *.ear
+.mvn/
 
-# IDE and Editor files
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+out/
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+uploads/
+uploads_data/
+backend/uploads/
+cv-worker-service/uploads/
+
+# Local uploaded/debug documents
+uploads_debug.pdf
+*.docx
+*.pdf
+
+# Docker / local database dumps
+*.dump
+*.sql.gz
+
+# IDE and OS files
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
-# Logs and temporary files
-*.log
-logs/
-temp/
-tmp/
-uploads/
-uploads_data/
-
-# Dependencies
-node_modules/
-.mvn/
-wrapper/
-
-# Bmad output
-_bmad-output/
+# BMAD transient memory only; keep planning and implementation artifacts tracked
+_bmad-output/**/.memlog.md
